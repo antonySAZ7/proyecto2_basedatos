@@ -34,6 +34,13 @@ services:
     container_name: proyecto2-frontend
     ports:
       - "3001:3000" # Mapea el puerto 3000 del contenedor (react) al 3001 local para no chocar con backend
+    environment:
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=3001
+      - CHOKIDAR_USEPOLLING=true
+      - HOST=0.0.0.0
+    stdin_open: true # Esto es necesario para react-scripts en docker a veces
+    tty: true
     depends_on:
       - backend
     restart: unless-stopped

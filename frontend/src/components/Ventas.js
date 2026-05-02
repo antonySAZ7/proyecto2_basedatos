@@ -37,7 +37,7 @@ export default function Ventas() {
     }, []);
 
     const agregarAlCarrito = () => {
-        const prod = productos.find(p => p.id_producto == idProductoSeleccionado);
+        const prod = productos.find(p => p.id_producto === Number(idProductoSeleccionado));
         if (!prod) return;
 
         if (cantidad > prod.stock) {
@@ -45,14 +45,14 @@ export default function Ventas() {
             return;
         }
 
-        const existente = carrito.find(item => item.id_producto == prod.id_producto);
+        const existente = carrito.find(item => item.id_producto === prod.id_producto);
         if (existente) {
             if (existente.cantidad + cantidad > prod.stock) {
                 setError(`Excede el stock disponible sumando lo que ya está en el carrito.`);
                 return;
             }
             setCarrito(carrito.map(item =>
-                item.id_producto == prod.id_producto ? { ...item, cantidad: item.cantidad + parseInt(cantidad) } : item
+                item.id_producto === prod.id_producto ? { ...item, cantidad: item.cantidad + parseInt(cantidad) } : item
             ));
         } else {
             setCarrito([...carrito, { id_producto: prod.id_producto, nombre: prod.nombre, cantidad: parseInt(cantidad), precio: prod.precio }]);
