@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: proyecto2-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-proy2}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+      POSTGRES_DB: ${DB_NAME:-tienda_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: proyecto2-backend
+    ports:
+      - "3000:3000"
+    environment:
+      DB_USER: ${DB_USER:-proy2}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      DB_HOST: db
+      DB_NAME: ${DB_NAME:-tienda_db}
+      DB_PORT: 5432
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: proyecto2-frontend
+    ports:
+      - "3001:3000" # Mapea el puerto 3000 del contenedor (react) al 3001 local para no chocar con backend
+    depends_on:
+      - backend
+    restart: unless-stopped
