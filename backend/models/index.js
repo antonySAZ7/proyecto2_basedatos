@@ -1,3 +1,6 @@
+//se utiliza sequelize como un orm para node y esto ayuda con las tablas usando modelos esto para evitar el sql repetitivo
+
+
 import { Sequelize, DataTypes } from 'sequelize';
 import dotenv from 'dotenv';
 

@@ -1,20 +1,39 @@
 import express from 'express';
-import { pool } from '../db.js';
+import { Categoria, Producto, Proveedor } from '../models/index.js';
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
     try {
-        const result = await pool.query(`
-      SELECT p.id_producto, p.nombre, p.precio, p.stock,
-             c.nombre AS categoria,
-             pr.nombre AS proveedor
-      FROM producto p
-      JOIN categoria c ON p.id_categoria = c.id_categoria
-      JOIN proveedor pr ON p.id_proveedor = pr.id_proveedor
-    `);
+        const productos = await Producto.findAll({
+            attributes: ['id_producto', 'nombre', 'precio', 'stock', 'id_categoria', 'id_proveedor'],
+            include: [
+                {
+                    model: Categoria,
+                    as: 'categoria',
+                    attributes: ['nombre'],
+                },
+                {
+                    model: Proveedor,
+                    as: 'proveedor',
+                    attributes: ['nombre'],
+                },
+            ],
+            order: [['id_producto', 'ASC']],
+        });
 
-        res.json(result.rows);
+        const respuesta = productos.map(producto => ({
+            id_producto: producto.id_producto,
+            nombre: producto.nombre,
+            precio: producto.precio,
+            stock: producto.stock,
+            id_categoria: producto.id_categoria,
+            id_proveedor: producto.id_proveedor,
+            categoria: producto.categoria?.nombre,
+            proveedor: producto.proveedor?.nombre,
+        }));
+
+        res.json(respuesta);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -23,11 +42,8 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { nombre, precio, stock, id_categoria, id_proveedor } = req.body;
-        const result = await pool.query(
-            'INSERT INTO producto (nombre, precio, stock, id_categoria, id_proveedor) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [nombre, precio, stock, id_categoria, id_proveedor]
-        );
-        res.json(result.rows[0]);
+        const producto = await Producto.create({ nombre, precio, stock, id_categoria, id_proveedor });
+        res.json(producto);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -37,11 +53,14 @@ router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, precio, stock, id_categoria, id_proveedor } = req.body;
-        const result = await pool.query(
-            'UPDATE producto SET nombre=$1, precio=$2, stock=$3, id_categoria=$4, id_proveedor=$5 WHERE id_producto=$6 RETURNING *',
-            [nombre, precio, stock, id_categoria, id_proveedor, id]
-        );
-        res.json(result.rows[0]);
+
+        const producto = await Producto.findByPk(id);
+        if (!producto) {
+            return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+
+        await producto.update({ nombre, precio, stock, id_categoria, id_proveedor });
+        res.json(producto);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -50,7 +69,13 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await pool.query('DELETE FROM producto WHERE id_producto=$1', [id]);
+
+        const producto = await Producto.findByPk(id);
+        if (!producto) {
+            return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+
+        await producto.destroy();
         res.json({ message: 'Producto eliminado' });
     } catch (error) {
         res.status(500).json({ error: error.message });
