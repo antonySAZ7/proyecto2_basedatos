@@ -21,14 +21,14 @@ export default function Ventas() {
     const [nuevoClienteCorreo, setNuevoClienteCorreo] = useState('');
 
     useEffect(() => {
-        fetch('http://localhost:3000/productos')
+        fetch('http://localhost:3000/productos', { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 setProductos(data);
                 if (data.length > 0) setIdProductoSeleccionado(data[0].id_producto);
             });
 
-        fetch('http://localhost:3000/clientes')
+        fetch('http://localhost:3000/clientes', { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 setClientes(data);
@@ -74,13 +74,14 @@ export default function Ventas() {
             const res = await fetch('http://localhost:3000/clientes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ nombre: nuevoClienteNombre, correo: nuevoClienteCorreo })
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Error al crear cliente');
             
             // Refrescar lista de clientes
-            const resClientes = await fetch('http://localhost:3000/clientes');
+            const resClientes = await fetch('http://localhost:3000/clientes', { credentials: 'include' });
             const dataClientes = await resClientes.json();
             setClientes(dataClientes);
             
@@ -111,6 +112,7 @@ export default function Ventas() {
             const res = await fetch('http://localhost:3000/ventas', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(venta)
             });
 
@@ -125,7 +127,7 @@ export default function Ventas() {
             setCarrito([]);
 
             // refrescar productos para ver nuevo stock
-            fetch('http://localhost:3000/productos').then(r => r.json()).then(d => setProductos(d));
+            fetch('http://localhost:3000/productos', { credentials: 'include' }).then(r => r.json()).then(d => setProductos(d));
 
         } catch (err) {
             setError(err.message);

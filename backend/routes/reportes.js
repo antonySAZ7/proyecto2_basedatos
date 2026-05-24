@@ -1,8 +1,10 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
+router.use(requireRole('rol_reportes', 'rol_auditor'));
 
 // jpin de detalle con producto
 router.get('/detalle', async (req, res) => {

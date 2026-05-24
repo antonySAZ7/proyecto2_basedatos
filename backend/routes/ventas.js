@@ -1,11 +1,12 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
 
 // join de ventas con clientes y lod empleados
-router.get('/', async (req, res) => {
+router.get('/', requireRole('rol_vendedor', 'rol_reportes', 'rol_auditor'), async (req, res) => {
     try {
         const result = await pool.query(`
       SELECT v.id_venta, v.fecha, v.total,
@@ -24,7 +25,7 @@ router.get('/', async (req, res) => {
 
 
 
-router.post('/', async (req, res) => {
+router.post('/', requireRole('rol_vendedor'), async (req, res) => {
     const client = await pool.connect();
 
     try {

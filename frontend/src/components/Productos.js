@@ -7,7 +7,7 @@ export default function Productos() {
 
     const cargarProductos = async () => {
         try {
-            const res = await fetch('http://localhost:3000/productos');
+            const res = await fetch('http://localhost:3000/productos', { credentials: 'include' });
             if (!res.ok) throw new Error('Error al cargar productos');
             const data = await res.json();
             setProductos(data);
@@ -31,6 +31,7 @@ export default function Productos() {
             const res = await fetch('http://localhost:3000/productos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(nuevo)
             });
             if (!res.ok) throw new Error('Error al crear producto. Revisa los datos.');
@@ -43,7 +44,10 @@ export default function Productos() {
 
     const eliminarProducto = async (id) => {
         try {
-            const res = await fetch(`http://localhost:3000/productos/${id}`, { method: 'DELETE' });
+            const res = await fetch(`http://localhost:3000/productos/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
             if (!res.ok) throw new Error('Error al eliminar producto');
             cargarProductos();
         } catch (err) {
@@ -61,6 +65,7 @@ export default function Productos() {
             const res = await fetch(`http://localhost:3000/productos/${p.id_producto}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ ...p, nombre: nuevoNombre, precio: nuevoPrecio, stock: nuevoStock })
             });
             if (!res.ok) throw new Error('Error al actualizar producto');

@@ -1,9 +1,10 @@
 import express from 'express';
 import { Categoria, Producto, Proveedor } from '../models/index.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
     try {
         const productos = await Producto.findAll({
             attributes: ['id_producto', 'nombre', 'precio', 'stock', 'id_categoria', 'id_proveedor'],
@@ -39,7 +40,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireRole('rol_inventario'), async (req, res) => {
     try {
         const { nombre, precio, stock, id_categoria, id_proveedor } = req.body;
         const producto = await Producto.create({ nombre, precio, stock, id_categoria, id_proveedor });
@@ -49,7 +50,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole('rol_inventario'), async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, precio, stock, id_categoria, id_proveedor } = req.body;
@@ -66,7 +67,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('rol_inventario'), async (req, res) => {
     try {
         const { id } = req.params;
 

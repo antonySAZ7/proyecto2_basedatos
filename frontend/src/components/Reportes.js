@@ -7,7 +7,7 @@ export default function Reportes() {
 
     const cargarReporte = async (url, nombreReporte) => {
         try {
-            const res = await fetch(`http://localhost:3000${url}`);
+            const res = await fetch(`http://localhost:3000${url}`, { credentials: 'include' });
             if (!res.ok) throw new Error('Error al cargar reporte');
             const data = await res.json();
             setDatos(data);

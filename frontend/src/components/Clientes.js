@@ -7,7 +7,7 @@ export default function Clientes() {
 
     const cargarClientes = async () => {
         try {
-            const res = await fetch('http://localhost:3000/clientes');
+            const res = await fetch('http://localhost:3000/clientes', { credentials: 'include' });
             if (!res.ok) throw new Error('Error al cargar clientes');
             const data = await res.json();
             setClientes(data);
@@ -31,6 +31,7 @@ export default function Clientes() {
             const res = await fetch('http://localhost:3000/clientes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(nuevo)
             });
             if (!res.ok) throw new Error('Error al crear cliente');
@@ -43,7 +44,10 @@ export default function Clientes() {
 
     const eliminarCliente = async (id) => {
         try {
-            const res = await fetch(`http://localhost:3000/clientes/${id}`, { method: 'DELETE' });
+            const res = await fetch(`http://localhost:3000/clientes/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
             if (!res.ok) throw new Error('Error al eliminar cliente');
             cargarClientes();
         } catch (err) {
@@ -60,6 +64,7 @@ export default function Clientes() {
             const res = await fetch(`http://localhost:3000/clientes/${c.id_cliente}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ nombre: nuevoNombre, correo: nuevoCorreo })
             });
             if (!res.ok) throw new Error('Error al actualizar cliente');

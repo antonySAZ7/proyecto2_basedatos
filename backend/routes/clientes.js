@@ -1,9 +1,10 @@
 import express from 'express';
 import { Cliente } from '../models/index.js';
+import { requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/', requireRole('rol_vendedor', 'rol_reportes', 'rol_auditor'), async (req, res) => {
     try {
         const clientes = await Cliente.findAll({
             order: [['id_cliente', 'ASC']]
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireRole('rol_vendedor'), async (req, res) => {
     try {
         const { nombre, correo } = req.body;
         const cliente = await Cliente.create({ nombre, correo });
@@ -24,7 +25,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole('rol_vendedor'), async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, correo } = req.body;
@@ -41,7 +42,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('rol_vendedor'), async (req, res) => {
     try {
         const { id } = req.params;
 
