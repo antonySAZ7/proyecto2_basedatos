@@ -5,6 +5,14 @@
 
 -- es es archivo para cuando se inicie el docker, el volumen del docker lea la bd de postgres y se cree todo.
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE ROLE rol_administrador NOLOGIN;
+CREATE ROLE rol_vendedor NOLOGIN;
+CREATE ROLE rol_inventario NOLOGIN;
+CREATE ROLE rol_reportes NOLOGIN;
+CREATE ROLE rol_auditor NOLOGIN;
+
 
 CREATE TABLE categoria (
     id_categoria SERIAL PRIMARY KEY,
@@ -83,6 +91,20 @@ CREATE TABLE detalle_venta (
     FOREIGN KEY (id_venta) REFERENCES venta(id_venta) ON DELETE CASCADE,
     FOREIGN KEY (id_producto) REFERENCES producto(id_producto)
 );
+
+CREATE TABLE usuario_app (
+    id_usuario SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    rol VARCHAR(50) NOT NULL CHECK (rol IN (
+        'rol_administrador',
+        'rol_vendedor',
+        'rol_inventario',
+        'rol_reportes',
+        'rol_auditor'
+    ))
+);
+
 CREATE INDEX idx_producto_categoria
 ON producto(id_categoria);
 
@@ -92,6 +114,7 @@ ON venta(id_cliente);
 
 CREATE INDEX idx_detalle_producto
 ON detalle_venta(id_producto);
+
 INSERT INTO categoria (nombre) VALUES
 ('Electronica'),('Ropa'),('Alimentos'),('Hogar'),('Juguetes'),
 ('Deportes'),('Belleza'),('Automotriz'),('Tecnologia'),('Libros'),
@@ -186,3 +209,243 @@ INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario) VAL
 (21,21,1,900),(22,22,1,250),(23,23,1,100),(24,24,1,3500),(25,25,1,10000);
 
 CREATE VIEW vista_ventas_detalle AS SELECT v.id_venta, v.fecha, v.total, c.nombre as cliente, p.nombre as producto, dv.cantidad, dv.precio_unitario FROM venta v JOIN cliente c ON v.id_cliente = c.id_cliente JOIN detalle_venta dv ON v.id_venta = dv.id_venta JOIN producto p ON dv.id_producto = p.id_producto;
+
+INSERT INTO usuario_app (username, password_hash, rol) VALUES
+('admin_de_prueba', crypt('secret', gen_salt('bf')), 'rol_administrador'),
+('ventas_de_prueba', crypt('secret', gen_salt('bf')), 'rol_vendedor'),
+('inventario_de_prueba', crypt('secret', gen_salt('bf')), 'rol_inventario'),
+('reportes_de_prueba', crypt('secret', gen_salt('bf')), 'rol_reportes'),
+('auditor_de_prueba', crypt('secret', gen_salt('bf')), 'rol_auditor');
+
+CREATE OR REPLACE PROCEDURE sp_crear_cliente_seguro(
+    IN p_nombre TEXT,
+    IN p_correo TEXT,
+    INOUT p_id_cliente_creado INT,
+    INOUT p_mensaje TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO cliente (nombre, correo)
+    VALUES (p_nombre, p_correo)
+    RETURNING id_cliente INTO p_id_cliente_creado;
+
+    p_mensaje := 'Cliente creado correctamente';
+EXCEPTION
+    WHEN unique_violation THEN
+        p_id_cliente_creado := NULL;
+        p_mensaje := 'El correo ya existe';
+    WHEN others THEN
+        p_id_cliente_creado := NULL;
+        p_mensaje := SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE sp_reponer_stock(
+    IN p_id_producto INT,
+    IN p_cantidad INT,
+    INOUT p_stock_actual INT,
+    INOUT p_mensaje TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_cantidad <= 0 THEN
+        p_stock_actual := NULL;
+        p_mensaje := 'La cantidad debe ser mayor que cero';
+        RETURN;
+    END IF;
+
+    UPDATE producto
+    SET stock = stock + p_cantidad
+    WHERE id_producto = p_id_producto
+    RETURNING stock INTO p_stock_actual;
+
+    IF p_stock_actual IS NULL THEN
+        p_mensaje := 'Producto no encontrado';
+        RETURN;
+    END IF;
+
+    p_mensaje := 'Stock actualizado correctamente';
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE sp_actualizar_precio_producto(
+    IN p_id_producto INT,
+    IN p_precio DECIMAL(10,2),
+    INOUT p_mensaje TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_precio <= 0 THEN
+        p_mensaje := 'El precio debe ser mayor que cero';
+        RETURN;
+    END IF;
+
+    UPDATE producto
+    SET precio = p_precio
+    WHERE id_producto = p_id_producto;
+
+    IF NOT FOUND THEN
+        p_mensaje := 'Producto no encontrado';
+        RETURN;
+    END IF;
+
+    p_mensaje := 'Precio actualizado correctamente';
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE sp_cancelar_venta(
+    IN p_id_venta INT,
+    INOUT p_mensaje TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    detalle RECORD;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM venta WHERE id_venta = p_id_venta) THEN
+        p_mensaje := 'Venta no encontrada';
+        RETURN;
+    END IF;
+
+    FOR detalle IN
+        SELECT id_producto, cantidad
+        FROM detalle_venta
+        WHERE id_venta = p_id_venta
+    LOOP
+        UPDATE producto
+        SET stock = stock + detalle.cantidad
+        WHERE id_producto = detalle.id_producto;
+    END LOOP;
+
+    DELETE FROM venta
+    WHERE id_venta = p_id_venta;
+
+    p_mensaje := 'Venta cancelada y stock restaurado';
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE sp_crear_venta(
+    IN p_id_cliente INT,
+    IN p_id_empleado INT,
+    IN p_productos JSONB,
+    INOUT p_id_venta INT,
+    INOUT p_total DECIMAL(10,2),
+    INOUT p_mensaje TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    item JSONB;
+    v_id_producto INT;
+    v_cantidad INT;
+    v_precio DECIMAL(10,2);
+    v_stock INT;
+BEGIN
+    p_id_venta := NULL;
+    p_total := 0;
+
+    IF NOT EXISTS (SELECT 1 FROM cliente WHERE id_cliente = p_id_cliente) THEN
+        p_mensaje := 'Cliente no encontrado';
+        ROLLBACK;
+        RETURN;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM empleado WHERE id_empleado = p_id_empleado) THEN
+        p_mensaje := 'Empleado no encontrado';
+        ROLLBACK;
+        RETURN;
+    END IF;
+
+    IF p_productos IS NULL OR jsonb_array_length(p_productos) = 0 THEN
+        p_mensaje := 'La venta debe incluir al menos un producto';
+        ROLLBACK;
+        RETURN;
+    END IF;
+
+    INSERT INTO venta (fecha, total, id_cliente, id_empleado)
+    VALUES (NOW(), 0, p_id_cliente, p_id_empleado)
+    RETURNING id_venta INTO p_id_venta;
+
+    FOR item IN SELECT value FROM jsonb_array_elements(p_productos)
+    LOOP
+        v_id_producto := (item->>'id_producto')::INT;
+        v_cantidad := (item->>'cantidad')::INT;
+
+        IF v_cantidad IS NULL OR v_cantidad <= 0 THEN
+            p_id_venta := NULL;
+            p_mensaje := 'La cantidad de cada producto debe ser mayor que cero';
+            ROLLBACK;
+            RETURN;
+        END IF;
+
+        SELECT precio, stock
+        INTO v_precio, v_stock
+        FROM producto
+        WHERE id_producto = v_id_producto
+        FOR UPDATE;
+
+        IF NOT FOUND THEN
+            p_id_venta := NULL;
+            p_mensaje := 'Producto no encontrado: ' || v_id_producto;
+            ROLLBACK;
+            RETURN;
+        END IF;
+
+        IF v_stock < v_cantidad THEN
+            p_id_venta := NULL;
+            p_mensaje := 'Stock insuficiente para el producto ' || v_id_producto;
+            ROLLBACK;
+            RETURN;
+        END IF;
+
+        INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario)
+        VALUES (p_id_venta, v_id_producto, v_cantidad, v_precio);
+
+        UPDATE producto
+        SET stock = stock - v_cantidad
+        WHERE id_producto = v_id_producto;
+
+        p_total := p_total + (v_cantidad * v_precio);
+    END LOOP;
+
+    UPDATE venta
+    SET total = p_total
+    WHERE id_venta = p_id_venta;
+
+    p_mensaje := 'Venta creada correctamente';
+    COMMIT;
+END;
+$$;
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM PUBLIC;
+
+GRANT USAGE ON SCHEMA public TO rol_administrador, rol_vendedor, rol_inventario, rol_reportes, rol_auditor;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rol_administrador;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rol_administrador;
+GRANT EXECUTE ON ALL ROUTINES IN SCHEMA public TO rol_administrador;
+
+GRANT SELECT, INSERT ON cliente TO rol_vendedor;
+GRANT SELECT ON producto, categoria, proveedor, empleado TO rol_vendedor;
+GRANT SELECT, INSERT ON venta, detalle_venta TO rol_vendedor;
+GRANT UPDATE (stock) ON producto TO rol_vendedor;
+GRANT USAGE, SELECT ON SEQUENCE cliente_id_cliente_seq, venta_id_venta_seq TO rol_vendedor;
+GRANT EXECUTE ON PROCEDURE sp_crear_venta(INT, INT, JSONB, INT, DECIMAL, TEXT) TO rol_vendedor;
+GRANT EXECUTE ON PROCEDURE sp_crear_cliente_seguro(TEXT, TEXT, INT, TEXT) TO rol_vendedor;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON producto, categoria, proveedor TO rol_inventario;
+GRANT USAGE, SELECT ON SEQUENCE producto_id_producto_seq, categoria_id_categoria_seq, proveedor_id_proveedor_seq TO rol_inventario;
+GRANT EXECUTE ON PROCEDURE sp_reponer_stock(INT, INT, INT, TEXT) TO rol_inventario;
+GRANT EXECUTE ON PROCEDURE sp_actualizar_precio_producto(INT, DECIMAL, TEXT) TO rol_inventario;
+
+GRANT SELECT ON cliente, empleado, producto, categoria, proveedor, venta, detalle_venta, vista_ventas_detalle TO rol_reportes;
+
+GRANT SELECT ON cliente, empleado, producto, categoria, proveedor, venta, detalle_venta, vista_ventas_detalle, usuario_app TO rol_auditor;
+
+GRANT rol_administrador, rol_vendedor, rol_inventario, rol_reportes, rol_auditor TO proy3;

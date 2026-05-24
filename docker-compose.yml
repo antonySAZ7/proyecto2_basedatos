@@ -5,7 +5,7 @@ services:
     image: postgres:15-alpine
     container_name: proyecto2-db
     environment:
-      POSTGRES_USER: ${DB_USER:-proy2}
+      POSTGRES_USER: ${DB_USER:-proy3}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
       POSTGRES_DB: ${DB_NAME:-tienda_db}
     ports:
