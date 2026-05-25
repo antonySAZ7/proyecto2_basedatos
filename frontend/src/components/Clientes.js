@@ -5,10 +5,15 @@ export default function Clientes() {
     const [error, setError] = useState(null);
     const [nuevo, setNuevo] = useState({ nombre: '', correo: '' });
 
+    const obtenerMensajeError = async (res, mensajeBase) => {
+        const data = await res.json().catch(() => ({}));
+        return data.error ? `${mensajeBase}: ${data.error}` : mensajeBase;
+    };
+
     const cargarClientes = async () => {
         try {
             const res = await fetch('http://localhost:3000/clientes', { credentials: 'include' });
-            if (!res.ok) throw new Error('Error al cargar clientes');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al cargar clientes'));
             const data = await res.json();
             setClientes(data);
             setError(null);
@@ -34,7 +39,7 @@ export default function Clientes() {
                 credentials: 'include',
                 body: JSON.stringify(nuevo)
             });
-            if (!res.ok) throw new Error('Error al crear cliente');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al crear cliente'));
             setNuevo({ nombre: '', correo: '' });
             cargarClientes();
         } catch (err) {
@@ -48,7 +53,7 @@ export default function Clientes() {
                 method: 'DELETE',
                 credentials: 'include'
             });
-            if (!res.ok) throw new Error('Error al eliminar cliente');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al eliminar cliente'));
             cargarClientes();
         } catch (err) {
             setError(err.message);
@@ -59,6 +64,10 @@ export default function Clientes() {
         const nuevoNombre = prompt('Nuevo nombre:', c.nombre);
         if (!nuevoNombre) return;
         const nuevoCorreo = prompt('Nuevo correo:', c.correo);
+        if (!nuevoCorreo) {
+            setError('Error al actualizar cliente: el correo es obligatorio');
+            return;
+        }
         
         try {
             const res = await fetch(`http://localhost:3000/clientes/${c.id_cliente}`, {
@@ -67,7 +76,7 @@ export default function Clientes() {
                 credentials: 'include',
                 body: JSON.stringify({ nombre: nuevoNombre, correo: nuevoCorreo })
             });
-            if (!res.ok) throw new Error('Error al actualizar cliente');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al actualizar cliente'));
             cargarClientes();
         } catch (err) {
             setError(err.message);

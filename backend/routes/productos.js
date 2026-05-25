@@ -1,5 +1,5 @@
 import express from 'express';
-import { Categoria, Producto, Proveedor } from '../models/index.js';
+import { Categoria, DetalleVenta, Producto, Proveedor, sequelize } from '../models/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -43,10 +43,23 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/', requireRole('rol_inventario'), async (req, res) => {
     try {
         const { nombre, precio, stock, id_categoria, id_proveedor } = req.body;
+
+        if (!nombre || precio === '' || stock === '') {
+            return res.status(400).json({ error: 'Nombre, precio y stock son obligatorios' });
+        }
+
+        if (Number(precio) <= 0) {
+            return res.status(400).json({ error: 'El precio debe ser mayor que cero' });
+        }
+
+        if (Number(stock) < 0) {
+            return res.status(400).json({ error: 'El stock no puede ser negativo' });
+        }
+
         const producto = await Producto.create({ nombre, precio, stock, id_categoria, id_proveedor });
         res.json(producto);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: `No se pudo crear el producto: ${error.message}` });
     }
 });
 
@@ -96,6 +109,18 @@ router.put('/:id', requireRole('rol_inventario'), async (req, res) => {
         const { id } = req.params;
         const { nombre, precio, stock, id_categoria, id_proveedor } = req.body;
 
+        if (!nombre || precio === '' || stock === '') {
+            return res.status(400).json({ error: 'Nombre, precio y stock son obligatorios para editar el producto' });
+        }
+
+        if (Number(precio) <= 0) {
+            return res.status(400).json({ error: 'El precio debe ser mayor que cero' });
+        }
+
+        if (Number(stock) < 0) {
+            return res.status(400).json({ error: 'El stock no puede ser negativo' });
+        }
+
         const producto = await Producto.findByPk(id);
         if (!producto) {
             return res.status(404).json({ error: 'Producto no encontrado' });
@@ -104,23 +129,38 @@ router.put('/:id', requireRole('rol_inventario'), async (req, res) => {
         await producto.update({ nombre, precio, stock, id_categoria, id_proveedor });
         res.json(producto);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: `No se pudo actualizar el producto: ${error.message}` });
     }
 });
 
 router.delete('/:id', requireRole('rol_inventario'), async (req, res) => {
+    const transaction = await sequelize.transaction();
+
     try {
         const { id } = req.params;
 
-        const producto = await Producto.findByPk(id);
+        const producto = await Producto.findByPk(id, { transaction });
         if (!producto) {
+            await transaction.rollback();
             return res.status(404).json({ error: 'Producto no encontrado' });
         }
 
-        await producto.destroy();
-        res.json({ message: 'Producto eliminado' });
+        const detallesEliminados = await DetalleVenta.destroy({
+            where: { id_producto: id },
+            transaction,
+        });
+
+        await producto.destroy({ transaction });
+        await transaction.commit();
+
+        res.json({
+            message: detallesEliminados > 0
+                ? 'Producto eliminado junto con sus detalles de venta relacionados'
+                : 'Producto eliminado',
+        });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        await transaction.rollback();
+        res.status(500).json({ error: `No se pudo eliminar el producto: ${error.message}` });
     }
 });
 

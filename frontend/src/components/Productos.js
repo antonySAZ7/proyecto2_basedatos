@@ -5,10 +5,15 @@ export default function Productos() {
     const [error, setError] = useState(null);
     const [nuevo, setNuevo] = useState({ nombre: '', precio: '', stock: '', id_categoria: 1, id_proveedor: 1 });
 
+    const obtenerMensajeError = async (res, mensajeBase) => {
+        const data = await res.json().catch(() => ({}));
+        return data.error ? `${mensajeBase}: ${data.error}` : mensajeBase;
+    };
+
     const cargarProductos = async () => {
         try {
             const res = await fetch('http://localhost:3000/productos', { credentials: 'include' });
-            if (!res.ok) throw new Error('Error al cargar productos');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al cargar productos'));
             const data = await res.json();
             setProductos(data);
             setError(null);
@@ -34,7 +39,7 @@ export default function Productos() {
                 credentials: 'include',
                 body: JSON.stringify(nuevo)
             });
-            if (!res.ok) throw new Error('Error al crear producto. Revisa los datos.');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al crear producto'));
             setNuevo({ nombre: '', precio: '', stock: '', id_categoria: 1, id_proveedor: 1 });
             cargarProductos();
         } catch (err) {
@@ -48,7 +53,7 @@ export default function Productos() {
                 method: 'DELETE',
                 credentials: 'include'
             });
-            if (!res.ok) throw new Error('Error al eliminar producto');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al eliminar producto'));
             cargarProductos();
         } catch (err) {
             setError(err.message);
@@ -60,6 +65,10 @@ export default function Productos() {
         if (!nuevoNombre) return;
         const nuevoPrecio = prompt('Nuevo precio:', p.precio);
         const nuevoStock = prompt('Nuevo stock:', p.stock);
+        if (!nuevoPrecio || nuevoStock === null || nuevoStock === '') {
+            setError('Error al actualizar producto: precio y stock son obligatorios');
+            return;
+        }
         
         try {
             const res = await fetch(`http://localhost:3000/productos/${p.id_producto}`, {
@@ -68,7 +77,7 @@ export default function Productos() {
                 credentials: 'include',
                 body: JSON.stringify({ ...p, nombre: nuevoNombre, precio: nuevoPrecio, stock: nuevoStock })
             });
-            if (!res.ok) throw new Error('Error al actualizar producto');
+            if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al actualizar producto'));
             cargarProductos();
         } catch (err) {
             setError(err.message);
