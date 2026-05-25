@@ -50,6 +50,47 @@ router.post('/', requireRole('rol_inventario'), async (req, res) => {
     }
 });
 
+router.post('/:id/reponer', requireRole('rol_inventario'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { cantidad } = req.body;
+
+        const result = await Producto.sequelize.query(
+            'CALL sp_reponer_stock($1::INT, $2::INT, NULL::INT, NULL::TEXT)',
+            {
+                bind: [id, cantidad],
+            }
+        );
+
+        const salida = result[0][0];
+        res.json({
+            message: salida.p_mensaje,
+            stock: salida.p_stock_actual,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put('/:id/precio', requireRole('rol_inventario'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { precio } = req.body;
+
+        const result = await Producto.sequelize.query(
+            'CALL sp_actualizar_precio_producto($1::INT, $2::DECIMAL, NULL::TEXT)',
+            {
+                bind: [id, precio],
+            }
+        );
+
+        const salida = result[0][0];
+        res.json({ message: salida.p_mensaje });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.put('/:id', requireRole('rol_inventario'), async (req, res) => {
     try {
         const { id } = req.params;

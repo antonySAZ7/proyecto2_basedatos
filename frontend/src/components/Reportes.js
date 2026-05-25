@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 
-export default function Reportes() {
+export default function Reportes({ user }) {
     const [datos, setDatos] = useState([]);
     const [titulo, setTitulo] = useState('');
     const [error, setError] = useState(null);
+    const esAuditor = user?.rol === 'rol_auditor';
 
     const cargarReporte = async (url, nombreReporte) => {
         try {
@@ -45,6 +46,11 @@ export default function Reportes() {
                 <button onClick={() => cargarReporte('/reportes/top-productos', 'GROUP BY y HAVING (Top Productos)')}>Top Productos (GROUP BY)</button>
                 <button onClick={() => cargarReporte('/reportes/top-clientes', 'CTE (Top Clientes)')}>Top Clientes (CTE)</button>
                 <button onClick={() => cargarReporte('/reportes/vista', 'Vista SQL (Detalle de Ventas)')}>Vista (Detalle)</button>
+                {esAuditor && (
+                    <button onClick={() => cargarReporte('/reportes/usuarios', 'Auditoria (Usuarios del sistema)')}>
+                        Usuarios del sistema
+                    </button>
+                )}
             </div>
 
             {datos.length > 0 && (

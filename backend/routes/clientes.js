@@ -25,6 +25,32 @@ router.post('/', requireRole('rol_vendedor'), async (req, res) => {
     }
 });
 
+router.post('/seguro', requireRole('rol_vendedor'), async (req, res) => {
+    try {
+        const { nombre, correo } = req.body;
+
+        const result = await Cliente.sequelize.query(
+            'CALL sp_crear_cliente_seguro($1::TEXT, $2::TEXT, NULL::INT, NULL::TEXT)',
+            {
+                bind: [nombre, correo],
+            }
+        );
+
+        const salida = result[0][0];
+
+        if (!salida.p_id_cliente_creado) {
+            return res.status(400).json({ error: salida.p_mensaje });
+        }
+
+        res.json({
+            message: salida.p_mensaje,
+            id_cliente: salida.p_id_cliente_creado,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.put('/:id', requireRole('rol_vendedor'), async (req, res) => {
     try {
         const { id } = req.params;

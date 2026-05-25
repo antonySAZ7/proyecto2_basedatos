@@ -146,7 +146,7 @@ function App() {
       <main>
         {vista === 'productos' && <Productos />}
         {vista === 'clientes' && <Clientes />}
-        {vista === 'reportes' && <Reportes />}
+        {vista === 'reportes' && <Reportes user={user} />}
         {vista === 'ventas' && <Ventas />}
       </main>
     </div>

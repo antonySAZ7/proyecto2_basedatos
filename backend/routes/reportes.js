@@ -6,6 +6,20 @@ const router = express.Router();
 
 router.use(requireRole('rol_reportes', 'rol_auditor'));
 
+router.get('/usuarios', requireRole('rol_auditor'), async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT id_usuario, username, rol
+            FROM usuario_app
+            ORDER BY id_usuario
+        `);
+
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // jpin de detalle con producto
 router.get('/detalle', async (req, res) => {
     try {

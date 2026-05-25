@@ -4,18 +4,17 @@ import { requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-
-// join de ventas con clientes y lod empleados
 router.get('/', requireRole('rol_vendedor', 'rol_reportes', 'rol_auditor'), async (req, res) => {
     try {
         const result = await pool.query(`
-      SELECT v.id_venta, v.fecha, v.total,
-             c.nombre AS cliente,
-             e.nombre AS empleado
-      FROM venta v
-      JOIN cliente c ON v.id_cliente = c.id_cliente
-      JOIN empleado e ON v.id_empleado = e.id_empleado
-    `);
+            SELECT v.id_venta, v.fecha, v.total,
+                   c.nombre AS cliente,
+                   e.nombre AS empleado
+            FROM venta v
+            JOIN cliente c ON v.id_cliente = c.id_cliente
+            JOIN empleado e ON v.id_empleado = e.id_empleado
+            ORDER BY v.id_venta DESC
+        `);
 
         res.json(result.rows);
     } catch (error) {
@@ -23,66 +22,60 @@ router.get('/', requireRole('rol_vendedor', 'rol_reportes', 'rol_auditor'), asyn
     }
 });
 
-
-
 router.post('/', requireRole('rol_vendedor'), async (req, res) => {
-    const client = await pool.connect();
-
     try {
-        await client.query('BEGIN');
-
         const { id_cliente, id_empleado, productos } = req.body;
 
-        const ventaRes = await client.query(
-            `INSERT INTO venta (fecha, total, id_cliente, id_empleado)
-       VALUES (NOW(), 0, $1, $2)
-       RETURNING id_venta`,
-            [id_cliente, id_empleado]
-        );
-
-        const idVenta = ventaRes.rows[0].id_venta;
-        let total = 0;
-
-        for (let p of productos) {
-            // verificar stock
-            const stockRes = await client.query('SELECT stock FROM producto WHERE id_producto = $1', [p.id_producto]);
-            if (stockRes.rows.length === 0) {
-                throw new Error(`Producto ${p.id_producto} no encontrado`);
-            }
-            if (stockRes.rows[0].stock < p.cantidad) {
-                throw new Error(`Stock insuficiente para el producto ${p.id_producto}. Quedan ${stockRes.rows[0].stock}.`);
-            }
-
-            // insertar detalle
-            await client.query(
-                `INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario)
-                 VALUES ($1, $2, $3, $4)`,
-                [idVenta, p.id_producto, p.cantidad, p.precio]
-            );
-
-            // reducir stock
-            await client.query(
-                `UPDATE producto SET stock = stock - $1 WHERE id_producto = $2`,
-                [p.cantidad, p.id_producto]
-            );
-
-            total += p.cantidad * p.precio;
+        if (!id_cliente || !id_empleado || !Array.isArray(productos) || productos.length === 0) {
+            return res.status(400).json({ error: 'Debes enviar cliente, empleado y al menos un producto' });
         }
 
-        await client.query(
-            `UPDATE venta SET total = $1 WHERE id_venta = $2`,
-            [total, idVenta]
+        const productosVenta = productos.map(producto => ({
+            id_producto: producto.id_producto,
+            cantidad: producto.cantidad,
+        }));
+
+        const result = await pool.query(
+            `CALL sp_crear_venta(
+                $1::INT,
+                $2::INT,
+                $3::JSONB,
+                NULL::INT,
+                NULL::DECIMAL,
+                NULL::TEXT
+            )`,
+            [id_cliente, id_empleado, JSON.stringify(productosVenta)]
         );
 
-        await client.query('COMMIT');
+        const salida = result.rows[0];
 
-        res.json({ message: 'Venta creada correctamente. Stock actualizado.' });
+        if (!salida.p_id_venta) {
+            return res.status(400).json({ error: salida.p_mensaje || 'No se pudo crear la venta' });
+        }
 
+        res.json({
+            message: salida.p_mensaje,
+            id_venta: salida.p_id_venta,
+            total: salida.p_total,
+        });
     } catch (error) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Error en la transacción' });
-    } finally {
-        client.release();
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/:id/cancelar', requireRole('rol_vendedor'), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            'CALL sp_cancelar_venta($1::INT, NULL::TEXT)',
+            [id]
+        );
+
+        const salida = result.rows[0];
+        res.json({ message: salida.p_mensaje });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 

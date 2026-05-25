@@ -437,6 +437,7 @@ GRANT SELECT, INSERT ON venta, detalle_venta TO rol_vendedor;
 GRANT UPDATE (stock) ON producto TO rol_vendedor;
 GRANT USAGE, SELECT ON SEQUENCE cliente_id_cliente_seq, venta_id_venta_seq TO rol_vendedor;
 GRANT EXECUTE ON PROCEDURE sp_crear_venta(INT, INT, JSONB, INT, DECIMAL, TEXT) TO rol_vendedor;
+GRANT EXECUTE ON PROCEDURE sp_cancelar_venta(INT, TEXT) TO rol_vendedor;
 GRANT EXECUTE ON PROCEDURE sp_crear_cliente_seguro(TEXT, TEXT, INT, TEXT) TO rol_vendedor;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON producto, categoria, proveedor TO rol_inventario;
