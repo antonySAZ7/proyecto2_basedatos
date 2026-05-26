@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
+const API_URL = `http://${window.location.hostname || 'localhost'}:3000`;
+
+const obtenerMensajeError = async (res, mensajeBase) => {
+    const data = await res.json().catch(() => ({}));
+    return data.error ? `${mensajeBase}: ${data.error}` : mensajeBase;
+};
 
 export default function Clientes() {
     const [clientes, setClientes] = useState([]);
     const [error, setError] = useState(null);
     const [nuevo, setNuevo] = useState({ nombre: '', correo: '' });
 
-    const obtenerMensajeError = async (res, mensajeBase) => {
-        const data = await res.json().catch(() => ({}));
-        return data.error ? `${mensajeBase}: ${data.error}` : mensajeBase;
-    };
-
-    const cargarClientes = async () => {
+    const cargarClientes = useCallback(async () => {
         try {
-            const res = await fetch('http://localhost:3000/clientes', { credentials: 'include' });
+            const res = await fetch(`${API_URL}/clientes`, { credentials: 'include' });
             if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al cargar clientes'));
             const data = await res.json();
             setClientes(data);
@@ -20,11 +22,11 @@ export default function Clientes() {
         } catch (err) {
             setError(err.message);
         }
-    };
+    }, []);
 
     useEffect(() => {
         cargarClientes();
-    }, []);
+    }, [cargarClientes]);
 
     const handleChange = (e) => {
         setNuevo({ ...nuevo, [e.target.name]: e.target.value });
@@ -33,7 +35,7 @@ export default function Clientes() {
     const crearCliente = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:3000/clientes', {
+            const res = await fetch(`${API_URL}/clientes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -49,7 +51,7 @@ export default function Clientes() {
 
     const eliminarCliente = async (id) => {
         try {
-            const res = await fetch(`http://localhost:3000/clientes/${id}`, {
+            const res = await fetch(`${API_URL}/clientes/${id}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -70,7 +72,7 @@ export default function Clientes() {
         }
         
         try {
-            const res = await fetch(`http://localhost:3000/clientes/${c.id_cliente}`, {
+            const res = await fetch(`${API_URL}/clientes/${c.id_cliente}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -86,7 +88,7 @@ export default function Clientes() {
     return (
         <div>
             <h2>Gestión de Clientes</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p className="error-message">{error}</p>}
             
             <form onSubmit={crearCliente} style={{ marginBottom: '20px' }}>
                 <input name="nombre" placeholder="Nombre" value={nuevo.nombre} onChange={handleChange} required />

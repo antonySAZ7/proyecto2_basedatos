@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
+const API_URL = `http://${window.location.hostname || 'localhost'}:3000`;
+
+const obtenerMensajeError = async (res, mensajeBase) => {
+    const data = await res.json().catch(() => ({}));
+    return data.error ? `${mensajeBase}: ${data.error}` : mensajeBase;
+};
 
 export default function Productos() {
     const [productos, setProductos] = useState([]);
     const [error, setError] = useState(null);
     const [nuevo, setNuevo] = useState({ nombre: '', precio: '', stock: '', id_categoria: 1, id_proveedor: 1 });
 
-    const obtenerMensajeError = async (res, mensajeBase) => {
-        const data = await res.json().catch(() => ({}));
-        return data.error ? `${mensajeBase}: ${data.error}` : mensajeBase;
-    };
-
-    const cargarProductos = async () => {
+    const cargarProductos = useCallback(async () => {
         try {
-            const res = await fetch('http://localhost:3000/productos', { credentials: 'include' });
+            const res = await fetch(`${API_URL}/productos`, { credentials: 'include' });
             if (!res.ok) throw new Error(await obtenerMensajeError(res, 'Error al cargar productos'));
             const data = await res.json();
             setProductos(data);
@@ -20,11 +22,11 @@ export default function Productos() {
         } catch (err) {
             setError(err.message);
         }
-    };
+    }, []);
 
     useEffect(() => {
         cargarProductos();
-    }, []);
+    }, [cargarProductos]);
 
     const handleChange = (e) => {
         setNuevo({ ...nuevo, [e.target.name]: e.target.value });
@@ -33,7 +35,7 @@ export default function Productos() {
     const crearProducto = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:3000/productos', {
+            const res = await fetch(`${API_URL}/productos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -49,7 +51,7 @@ export default function Productos() {
 
     const eliminarProducto = async (id) => {
         try {
-            const res = await fetch(`http://localhost:3000/productos/${id}`, {
+            const res = await fetch(`${API_URL}/productos/${id}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -71,7 +73,7 @@ export default function Productos() {
         }
         
         try {
-            const res = await fetch(`http://localhost:3000/productos/${p.id_producto}`, {
+            const res = await fetch(`${API_URL}/productos/${p.id_producto}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -87,7 +89,7 @@ export default function Productos() {
     return (
         <div>
             <h2>Gestión de Productos</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p className="error-message">{error}</p>}
             
             <form onSubmit={crearProducto} style={{ marginBottom: '20px' }}>
                 <input name="nombre" placeholder="Nombre" value={nuevo.nombre} onChange={handleChange} required />

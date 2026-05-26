@@ -3,8 +3,9 @@ import Productos from './components/Productos';
 import Clientes from './components/Clientes';
 import Reportes from './components/Reportes';
 import Ventas from './components/Ventas';
+import './App.css';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = `http://${window.location.hostname || 'localhost'}:3000`;
 
 const vistasPorRol = {
   rol_administrador: ['productos', 'clientes', 'reportes', 'ventas'],
@@ -82,16 +83,16 @@ function App() {
   };
 
   if (loading) {
-    return <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>Cargando...</div>;
+    return <div className="app-shell">Cargando...</div>;
   }
 
   if (!user) {
     return (
-      <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '420px', margin: '80px auto' }}>
+      <div className="login-shell">
         <h1>Sistema de Gestion de Tienda</h1>
         <h2>Iniciar sesion</h2>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <form onSubmit={iniciarSesion} style={{ display: 'grid', gap: '10px' }}>
+        {error && <p className="error-message">{error}</p>}
+        <form onSubmit={iniciarSesion} className="login-form">
           <input
             name="username"
             placeholder="Usuario"
@@ -109,7 +110,7 @@ function App() {
           />
           <button type="submit">Entrar</button>
         </form>
-        <p style={{ marginTop: '20px' }}>
+        <p className="login-help">
           Usuarios: admin_de_prueba, ventas_de_prueba, inventario_de_prueba, reportes_de_prueba, auditor_de_prueba.
           Contrasena: secret.
         </p>
@@ -118,27 +119,27 @@ function App() {
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '20px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
+    <div className="app-shell">
+      <header className="app-header">
         <h1>Sistema de Gestion de Tienda</h1>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
+        <div className="user-bar">
           <span>
             Usuario: <strong>{user.username}</strong> | Rol: <strong>{etiquetasRol[user.rol] || user.rol}</strong>
           </span>
           <button onClick={cerrarSesion}>Cerrar sesion</button>
         </div>
-        <nav style={{ display: 'flex', gap: '10px' }}>
+        <nav className="app-nav">
           {vistasPermitidas.includes('productos') && (
-            <button onClick={() => setVista('productos')} style={{ padding: '10px', cursor: 'pointer' }}>Productos crud</button>
+            <button className={vista === 'productos' ? 'active' : ''} onClick={() => setVista('productos')}>Productos crud</button>
           )}
           {vistasPermitidas.includes('clientes') && (
-            <button onClick={() => setVista('clientes')} style={{ padding: '10px', cursor: 'pointer' }}>Clientes crud</button>
+            <button className={vista === 'clientes' ? 'active' : ''} onClick={() => setVista('clientes')}>Clientes crud</button>
           )}
           {vistasPermitidas.includes('reportes') && (
-            <button onClick={() => setVista('reportes')} style={{ padding: '10px', cursor: 'pointer' }}>Reportes sql</button>
+            <button className={vista === 'reportes' ? 'active' : ''} onClick={() => setVista('reportes')}>Reportes sql</button>
           )}
           {vistasPermitidas.includes('ventas') && (
-            <button onClick={() => setVista('ventas')} style={{ padding: '10px', cursor: 'pointer' }}>Transacciones</button>
+            <button className={vista === 'ventas' ? 'active' : ''} onClick={() => setVista('ventas')}>Transacciones</button>
           )}
         </nav>
       </header>

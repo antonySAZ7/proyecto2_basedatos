@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+const API_URL = `http://${window.location.hostname || 'localhost'}:3000`;
+
 export default function Reportes({ user }) {
     const [datos, setDatos] = useState([]);
     const [titulo, setTitulo] = useState('');
@@ -8,7 +10,7 @@ export default function Reportes({ user }) {
 
     const cargarReporte = async (url, nombreReporte) => {
         try {
-            const res = await fetch(`http://localhost:3000${url}`, { credentials: 'include' });
+            const res = await fetch(`${API_URL}${url}`, { credentials: 'include' });
             if (!res.ok) throw new Error('Error al cargar reporte');
             const data = await res.json();
             setDatos(data);

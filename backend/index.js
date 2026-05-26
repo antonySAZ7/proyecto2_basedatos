@@ -10,8 +10,16 @@ import clientes from './routes/clientes.js';
 
 const app = express();
 
+const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001'];
+
 app.use(cors({
-    origin: 'http://localhost:3001',
+    origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Origen no permitido por CORS'));
+    },
     credentials: true,
 }));
 app.use(express.json());

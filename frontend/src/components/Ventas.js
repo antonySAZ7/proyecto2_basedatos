@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const API_URL = `http://${window.location.hostname || 'localhost'}:3000`;
+
 export default function Ventas() {
     const [mensaje, setMensaje] = useState('');
     const [error, setError] = useState('');
@@ -21,14 +23,14 @@ export default function Ventas() {
     const [nuevoClienteCorreo, setNuevoClienteCorreo] = useState('');
 
     useEffect(() => {
-        fetch('http://localhost:3000/productos', { credentials: 'include' })
+        fetch(`${API_URL}/productos`, { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 setProductos(data);
                 if (data.length > 0) setIdProductoSeleccionado(data[0].id_producto);
             });
 
-        fetch('http://localhost:3000/clientes', { credentials: 'include' })
+        fetch(`${API_URL}/clientes`, { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 setClientes(data);
@@ -71,7 +73,7 @@ export default function Ventas() {
             return;
         }
         try {
-            const res = await fetch('http://localhost:3000/clientes', {
+            const res = await fetch(`${API_URL}/clientes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -81,7 +83,7 @@ export default function Ventas() {
             if (!res.ok) throw new Error(data.error || 'Error al crear cliente');
             
             // Refrescar lista de clientes
-            const resClientes = await fetch('http://localhost:3000/clientes', { credentials: 'include' });
+            const resClientes = await fetch(`${API_URL}/clientes`, { credentials: 'include' });
             const dataClientes = await resClientes.json();
             setClientes(dataClientes);
             
@@ -109,7 +111,7 @@ export default function Ventas() {
                 productos: carrito
             };
 
-            const res = await fetch('http://localhost:3000/ventas', {
+            const res = await fetch(`${API_URL}/ventas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -127,7 +129,7 @@ export default function Ventas() {
             setCarrito([]);
 
             // refrescar productos para ver nuevo stock
-            fetch('http://localhost:3000/productos', { credentials: 'include' }).then(r => r.json()).then(d => setProductos(d));
+            fetch(`${API_URL}/productos`, { credentials: 'include' }).then(r => r.json()).then(d => setProductos(d));
 
         } catch (err) {
             setError(err.message);
